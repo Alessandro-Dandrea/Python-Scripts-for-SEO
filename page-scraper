@@ -1,0 +1,54 @@
+##  PAGE SCRAPER ##
+
+"""
+  Many thanks to Andrea D'Agostino for his excellent script I used as a base to create this one. His script: https://gist.github.com/andrea-dagostino/12d7a6a38ba578d2e8c81f7372862e93#file-scrape_blog_ita_complete-py
+"""
+
+import pandas as pd
+from tqdm import tqdm
+from trafilatura.sitemaps import sitemap_search
+from trafilatura import fetch_url, extract
+
+"""
+  Extract first text from a page.
+"""
+def extract_article(url: str) -> dict:
+    downloaded = fetch_url(url)
+    article = extract(downloaded, favor_precision=True)
+    return article
+
+"""
+    Let's create the DB then.
+"""
+def create_dataset(list_of_urls: list) -> pd.DataFrame:
+    data = []
+    for website in tqdm(list_of_websites, desc="Websites"):
+        urls = list_of_urls
+        for url in tqdm(urls, desc="URLs"):
+            d = {
+                'url': url,
+                "article": extract_article(url)
+            }
+            data.append(d)
+            time.sleep(0.5)
+
+    df = pd.DataFrame(data)
+    df = df.drop_duplicates()
+    df = df.dropna()
+
+    return df
+
+
+if __name__ == "__main__":
+
+    list_of_urls = [
+        "URL_1",
+        "URL_2",
+        "URL_3",
+        "URL_4",
+        "URL_5"
+    ]
+
+    df = create_dataset(list_of_urls)
+
+    df.to_csv("dataset.csv", index=False)
