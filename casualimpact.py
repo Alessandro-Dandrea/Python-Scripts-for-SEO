@@ -28,7 +28,7 @@ print("we have a total of:", len(data), " samples")
 data.head()
 
 data.sort_values(by=['Date'], inplace=True, ascending=True)
-data[['Clicks']].plot()
+data[['Clicks']].plot() #You can add all dimensions you want
 
 print(np.min(data.index.values))
 print(np.max(data.index.values))
@@ -37,7 +37,7 @@ pre_period = ["2022-02-16", "2022-05-18"] # before changings
 post_period = ["2022-05-19", "2022-08-19"]
 
 #ci = CausalImpact(data.iloc[:, 0], pre_period, post_period, nseasons=[{'period': 52}])
-ci = CausalImpact(data['Clicks'], pre_period, post_period) # here we might add seasonality as in the example above
+ci = CausalImpact(data['Clicks'], pre_period, post_period) # here we might add seasonality as in the example above. You can add all metrics you want. Maybe better one dimension at a time.
 
 print(ci.summary())
 ci.plot()
