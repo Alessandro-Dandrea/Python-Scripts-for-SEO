@@ -37,7 +37,9 @@ pre_period = ["2022-02-16", "2022-05-18"] # before changings
 post_period = ["2022-05-19", "2022-08-19"]
 
 #ci = CausalImpact(data.iloc[:, 0], pre_period, post_period, nseasons=[{'period': 52}])
-ci = CausalImpact(data['Clicks'], pre_period, post_period) # here we might add seasonality as in the example above. You can add all metrics you want. Maybe better one dimension at a time.
+ci = CausalImpact(data['Clicks'], pre_period, post_period) # here we might add seasonality as in the example above.
+# You can add all metrics you want. Maybe better one dimension at a time.
+# Pay attention when plotting the position, because an increase in position means it's decreasing.
 
 print(ci.summary())
 ci.plot()
