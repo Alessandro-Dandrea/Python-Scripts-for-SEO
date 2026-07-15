@@ -69,6 +69,12 @@ if uploaded_file is not None:
     )
     st.plotly_chart(fig3, width='stretch')
 
+    user_agent_counts = df['user_agent'].value_counts().reset_index()
+    user_agent_counts.columns = ['user_agent', 'count']
+
+    st.write("### User Agent Hits")
+    st.dataframe(user_agent_counts, width='stretch')
+
     # Data view
     st.write("### Raw Data")
     st.dataframe(df)
