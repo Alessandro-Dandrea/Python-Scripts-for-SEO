@@ -34,25 +34,13 @@ if uploaded_file is not None:
     df['size'] = pd.to_numeric(df['size'].replace('-', '0'))
     df['url'] = df['request'].str.split(' ').str[1]
 
-    st.markdown(
-        """
-        <style>
-        div[data-testid="stAlert"] {
-            margin-bottom: 4rem !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
     st.success(f"Parsed {len(df)} lines successfully!")
-    st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
 
     # Layout for charts
     col1, col2 = st.columns(2)
 
     with col1:
         fig1 = px.pie(df, names='status', title="Response Status Codes")
-        fig1.update_layout(margin=dict(t=60, b=20, l=20, r=20))
         st.plotly_chart(fig1, width='stretch')
 
     with col2:
