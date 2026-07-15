@@ -35,6 +35,7 @@ if uploaded_file is not None:
     df['url'] = df['request'].str.split(' ').str[1]
 
     st.success(f"Parsed {len(df)} lines successfully!")
+    st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
 
     # Layout for charts
     col1, col2 = st.columns(2)
