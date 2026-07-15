@@ -56,8 +56,18 @@ if uploaded_file is not None:
     top_urls.columns = ['url', 'count'] 
     
     st.write("### Top 10 Requested URLs")
-    # FIX 3: Set index to 'url' (lowercase)
-    st.bar_chart(top_urls.set_index('url'))
+    fig3 = px.bar(
+        top_urls,
+        x='count',
+        y='url',
+        orientation='h',
+        labels={'count': 'Requests', 'url': 'URL'},
+    )
+    fig3.update_layout(
+        yaxis={'categoryorder': 'total ascending'},
+        xaxis={'range': [0, top_urls['count'].max() * 1.05]},
+    )
+    st.plotly_chart(fig3, width='stretch')
 
     # Data view
     st.write("### Raw Data")
