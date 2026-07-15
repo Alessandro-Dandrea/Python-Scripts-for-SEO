@@ -40,18 +40,21 @@ if uploaded_file is not None:
     col1, col2 = st.columns(2)
 
     with col1:
+        # Use width='stretch' instead of use_container_width=True
         fig1 = px.pie(df, names='status', title="Response Status Codes")
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1, width='stretch')
 
     with col2:
-        df_time = df.set_index('timestamp').resample('H').size().reset_index(name='requests')
+        # CHANGE: Changed 'H' to 'h' for Pandas 3.0+ compatibility
+        df_time = df.set_index('timestamp').resample('h').size().reset_index(name='requests')
         fig2 = px.line(df_time, x='timestamp', y='requests', title="Requests per Hour")
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width='stretch')
 
     # Top URLs
     top_urls = df['url'].value_counts().head(10).reset_index()
     st.write("### Top 10 Requested URLs")
-    st.bar_chart(top_urls.set_index('url'))
+    # Using st.bar_chart with the new version requirements
+    st.bar_chart(top_urls.set_index('URL'))
 
     # Data view
     st.write("### Raw Data")
