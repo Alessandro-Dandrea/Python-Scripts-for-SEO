@@ -7,7 +7,7 @@ import io
 st.set_page_config(page_title="Log Analyzer", layout="wide")
 
 st.title("📊 Server Log Analyzer")
-st.write("Upload your Nginx/Apache log file to get started.")
+st.write("Upload your Nginx/Apache log file to get started. Credits: https://www.alessandro-dandrea.com/")
 
 # File uploader
 uploaded_file = st.file_uploader("Choose a log file", type="txt")
