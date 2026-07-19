@@ -61,6 +61,7 @@ def reverse_dns(ip: str) -> str:
         return "N/A"
 
 
+@st.cache_data
 def validate_bot_ip(ip: str, bot_name: str) -> bool:
     """Validate that an IP genuinely belongs to the claimed bot.
 
