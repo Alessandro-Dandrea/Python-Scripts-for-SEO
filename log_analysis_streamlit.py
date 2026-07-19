@@ -152,35 +152,26 @@ if uploaded_file is not None:
                     "Disable for faster (but unverified) results."
                 ),
             )
-        else:
-            ua_filter_mode = st.radio(
-                "User Agent Filter Mode",
-                ["All", "Single User Agent", "Multiple User Agents"],
+            
+            # Get unique User Agents for the selected bot families
+            bot_df = df[df['detected_bot'].isin(selected_bots)]
+            bot_uas = sorted(bot_df['user_agent'].unique())
+            selected_bot_ua = st.selectbox(
+                "Filter by User Agent",
+                options=["All"] + bot_uas,
                 index=0,
-                help="Choose whether to show all User Agents, filter by a single User Agent, or select multiple User Agents."
+                format_func=format_user_agent,
+                help="Filter results to show only a specific User Agent.",
             )
-
-            if ua_filter_mode == "Single User Agent":
-                selected_agent = st.selectbox(
-                    "User agent",
-                    options=user_agents,
-                    index=None,
-                    placeholder="Select a user agent",
-                    format_func=format_user_agent,
-                    help="Select a single user agent to filter the results.",
-                )
-                selected_agents = [selected_agent] if selected_agent else []
-            elif ua_filter_mode == "Multiple User Agents":
-                selected_agents = st.multiselect(
-                    "User agents",
-                    options=user_agents,
-                    default=[],
-                    placeholder="Select user agents",
-                    format_func=format_user_agent,
-                    help="Select one or more user agents. Leave empty to include all entries.",
-                )
-            else:
-                selected_agents = []
+        else:
+            selected_agents = st.multiselect(
+                "User agents",
+                options=user_agents,
+                default=[],
+                placeholder="All user agents",
+                format_func=format_user_agent,
+                help="Select one or more user agents. Leave empty to include all entries.",
+            )
 
     # ─── Apply filters ───────────────────────────────────────────────────
     if analysis_mode == "🤖 Verified Bots Only":
@@ -230,6 +221,11 @@ if uploaded_file is not None:
                     f"Showing {len(df_view)} bot requests "
                     f"(DNS validation disabled) from {len(df)} total log entries."
                 )
+
+        # Apply User Agent filter if a specific one is selected
+        if selected_bot_ua != "All":
+            df_view = df_view[df_view['user_agent'] == selected_bot_ua]
+            st.info(f"Filtering results for User Agent: `{selected_bot_ua}` ({len(df_view)} requests match).")
     else:
         # "All Traffic" mode — same behaviour as the original script
         if selected_agents:
