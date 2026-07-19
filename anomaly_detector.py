@@ -236,6 +236,9 @@ def detect_anomalies(df: pd.DataFrame, min_requests: int = 5, variance_threshold
         
     report_df = report_df[col_order]
     
+    # Filter out 'human browser' from the final anomalies report to focus on bots and unrecognized crawlers
+    report_df = report_df[report_df['User Agent Category'] != 'human browser']
+    
     # Sort
     report_df = report_df.sort_values(by=['Anomaly Flag', 'Variance %'], ascending=[False, False])
     
