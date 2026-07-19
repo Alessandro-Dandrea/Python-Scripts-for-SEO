@@ -10,86 +10,7 @@ st.set_page_config(page_title="Log Analyzer", layout="wide")
 st.title("📊 Server Log Analyzer")
 st.write("Upload your Nginx/Apache log file to get started. Credits: https://www.alessandro-dandrea.com/")
 
-# ─── Known bot patterns and their expected reverse-DNS domains ───────────────
-# Inspired by the SEJ article's "Validate Requests" section:
-# user-agent keyword  →  legitimate reverse-DNS domain suffix
-BOT_DEFINITIONS = {
-    "Googlebot":       ["googlebot.com", "google.com"],
-    "bingbot":         ["search.msn.com"],
-    "Baiduspider":     ["baidu.com", "baidu.jp"],
-    "YandexBot":       ["yandex.ru", "yandex.net", "yandex.com"],
-    "DuckDuckBot":     ["duckduckgo.com"],
-    "Applebot":        ["apple.com"],
-    "AhrefsBot":       ["ahrefs.com"],
-    "SemrushBot":      ["semrush.com"],
-    "MJ12bot":         ["majestic.com", "mj12bot.com"],
-    "PetalBot":        ["petalsearch.com", "aspiegel.com"],
-    "Sogou":           ["sogou.com"],
-    "Bytespider":      ["bytedance.com"],
-    "GPTBot":          ["openai.com"],
-    "Perplexitybot":   ["perplexity.ai"],
-    "ClaudeBot":       ["anthropic.com"],
-    "facebookexternalhit": ["facebook.com", "fbsv.net"],
-    "Twitterbot":      ["twttr.com", "twitter.com"],
-    "LinkedInBot":     ["linkedin.com"],
-}
-
-# Build a single regex that matches any known bot in the user-agent string
-_BOT_UA_PATTERN = re.compile(
-    "|".join(re.escape(k) for k in BOT_DEFINITIONS),
-    re.IGNORECASE,
-)
-
-
-def identify_bot(user_agent: str) -> str | None:
-    """Return the bot name if the UA matches a known bot pattern, else None."""
-    for bot_name in BOT_DEFINITIONS:
-        if bot_name.lower() in user_agent.lower():
-            return bot_name
-    return None
-
-
-def get_ua_family(user_agent: str) -> str:
-    """Return the user agent family (bot or browser name) for the user agent string."""
-    bot = identify_bot(user_agent)
-    if bot:
-        bot_display_names = {
-            "Googlebot": "Googlebot",
-            "bingbot": "Bingbot",
-            "Baiduspider": "Baiduspider",
-            "YandexBot": "YandexBot",
-            "DuckDuckBot": "DuckDuckBot",
-            "Applebot": "Applebot",
-            "AhrefsBot": "AhrefsBot",
-            "SemrushBot": "SemrushBot",
-            "MJ12bot": "Majestic / MJ12bot",
-            "PetalBot": "PetalBot",
-            "Sogou": "Sogou",
-            "Bytespider": "Bytespider",
-            "GPTBot": "GPTBot",
-            "Perplexitybot": "PerplexityBot",
-            "ClaudeBot": "ClaudeBot",
-            "facebookexternalhit": "Facebook External Hit",
-            "Twitterbot": "Twitterbot",
-            "LinkedInBot": "LinkedInBot",
-        }
-        return bot_display_names.get(bot, bot)
-
-    ua_lower = user_agent.lower()
-    if "edg/" in ua_lower or "edge" in ua_lower:
-        return "Edge"
-    elif "chrome" in ua_lower:
-        return "Chrome"
-    elif "firefox" in ua_lower:
-        return "Firefox"
-    elif "safari" in ua_lower:
-        return "Safari"
-    elif "opera" in ua_lower or "opr/" in ua_lower:
-        return "Opera"
-    elif "msie" in ua_lower or "trident/" in ua_lower:
-        return "Internet Explorer"
-    
-    return "Other / Unknown"
+from anomaly_detector import BOT_DEFINITIONS, identify_bot, get_ua_family, detect_anomalies, export_report
 
 
 def reverse_dns(ip: str) -> str:
@@ -217,6 +138,23 @@ if uploaded_file is not None:
                 help="Select one or more user agents. Leave empty to include all entries.",
             )
 
+        # Anomaly Detection Settings
+        st.markdown("---")
+        st.header("Anomaly Settings")
+        min_requests_n = st.number_input(
+            "Minimum Requests (N)",
+            min_value=1,
+            value=5,
+            help="Minimum number of requests for a (URL, UA category) group to be analyzed."
+        )
+        variance_thresh = st.slider(
+            "Variance Threshold (%)",
+            min_value=1,
+            max_value=100,
+            value=25,
+            help="Flag group as anomalous if response size variance exceeds this threshold."
+        ) / 100.0
+
     # ─── Apply filters ───────────────────────────────────────────────────
     if analysis_mode == "🤖 Verified Bots Only":
         # Step 1: filter to rows whose UA matches a selected bot
@@ -282,71 +220,165 @@ if uploaded_file is not None:
             df_view = df
             st.success(f"Parsed {len(df)} lines successfully!")
 
-    # ─── Charts ──────────────────────────────────────────────────────────
-    if df_view.empty:
-        st.warning("No log entries match the current filters.")
-    else:
-        # Layout for charts
-        col1, col2 = st.columns(2)
+    # ─── Tabs Wrapper ──────────────────────────────────────────────────
+    tab1, tab2 = st.tabs(["📊 Standard Log Analytics", "🔍 Anomaly Detection & Cloaking"])
 
-        with col1:
-            fig1 = px.pie(df_view, names='status', title="Response Status Codes")
-            st.plotly_chart(fig1, width='stretch')
-
-        with col2:
-            df_time = df_view.set_index('timestamp').resample('h').size().reset_index(name='requests')
-            fig2 = px.line(df_time, x='timestamp', y='requests', title="Requests per Hour")
-            st.plotly_chart(fig2, width='stretch')
-
-        top_urls = df_view['url'].value_counts().head(10).reset_index()
-        top_urls.columns = ['url', 'count']
-
-        st.write("### Top 10 Requested URLs")
-        fig3 = px.bar(
-            top_urls,
-            x='count',
-            y='url',
-            orientation='h',
-            labels={'count': 'Requests', 'url': 'URL'},
-        )
-        fig3.update_layout(
-            yaxis={'categoryorder': 'total ascending'},
-            xaxis={'range': [0, top_urls['count'].max() * 1.05]},
-        )
-        st.plotly_chart(fig3, width='stretch')
-
-        st.write("### URLs Performance")
-        if not df_view.empty:
-            df_sorted = df_view.sort_values('timestamp')
-            url_perf = df_sorted.groupby('url').last().reset_index()
-            url_perf = url_perf[['url', 'timestamp', 'status']]
-            url_perf.columns = ['Path', 'Last Time Crawled', 'Last Status Code']
-            url_perf = url_perf.sort_values(by='Last Time Crawled', ascending=False)
-            st.dataframe(url_perf, use_container_width=True)
+    with tab1:
+        if df_view.empty:
+            st.warning("No log entries match the current filters.")
         else:
-            st.write("No performance data available.")
+            # Layout for charts
+            col1, col2 = st.columns(2)
 
-        user_agent_counts = df_view['user_agent'].value_counts().reset_index()
-        user_agent_counts.columns = ['User Agent', 'Hits']
-        user_agent_counts['User Agent Family'] = user_agent_counts['User Agent'].apply(get_ua_family)
-        user_agent_counts = user_agent_counts[['User Agent', 'User Agent Family', 'Hits']]
+            with col1:
+                fig1 = px.pie(df_view, names='status', title="Response Status Codes")
+                st.plotly_chart(fig1, width='stretch')
 
-        st.write("### User Agent Hits")
-        st.dataframe(user_agent_counts, use_container_width=True)
+            with col2:
+                df_time = df_view.set_index('timestamp').resample('h').size().reset_index(name='requests')
+                fig2 = px.line(df_time, x='timestamp', y='requests', title="Requests per Hour")
+                st.plotly_chart(fig2, width='stretch')
 
-        # In bot mode, show a breakdown by verified bot family
-        if analysis_mode == "🤖 Verified Bots Only" and 'detected_bot' in df_view.columns:
-            bot_counts = df_view['detected_bot'].value_counts().reset_index()
-            bot_counts.columns = ['bot', 'count']
-            st.write("### Verified Bot Breakdown")
-            fig_bots = px.bar(
-                bot_counts,
-                x='bot',
-                y='count',
-                labels={'bot': 'Bot', 'count': 'Requests'},
-                color='bot',
+            top_urls = df_view['url'].value_counts().head(10).reset_index()
+            top_urls.columns = ['url', 'count']
+
+            st.write("### Top 10 Requested URLs")
+            fig3 = px.bar(
+                top_urls,
+                x='count',
+                y='url',
+                orientation='h',
+                labels={'count': 'Requests', 'url': 'URL'},
             )
-            st.plotly_chart(fig_bots, width='stretch')
+            fig3.update_layout(
+                yaxis={'categoryorder': 'total ascending'},
+                xaxis={'range': [0, top_urls['count'].max() * 1.05]},
+            )
+            st.plotly_chart(fig3, width='stretch')
 
-        st.write("### Raw Data")
-        st.dataframe(df_view)
+            st.write("### URLs Performance")
+            if not df_view.empty:
+                df_sorted = df_view.sort_values('timestamp')
+                url_perf = df_sorted.groupby('url').last().reset_index()
+                url_perf = url_perf[['url', 'timestamp', 'status']]
+                url_perf.columns = ['Path', 'Last Time Crawled', 'Last Status Code']
+                url_perf = url_perf.sort_values(by='Last Time Crawled', ascending=False)
+                st.dataframe(url_perf, use_container_width=True)
+            else:
+                st.write("No performance data available.")
+
+            user_agent_counts = df_view['user_agent'].value_counts().reset_index()
+            user_agent_counts.columns = ['User Agent', 'Hits']
+            user_agent_counts['User Agent Family'] = user_agent_counts['User Agent'].apply(get_ua_family)
+            user_agent_counts = user_agent_counts[['User Agent', 'User Agent Family', 'Hits']]
+
+            st.write("### User Agent Hits")
+            st.dataframe(user_agent_counts, use_container_width=True)
+
+            # In bot mode, show a breakdown by verified bot family
+            if analysis_mode == "🤖 Verified Bots Only" and 'detected_bot' in df_view.columns:
+                bot_counts = df_view['detected_bot'].value_counts().reset_index()
+                bot_counts.columns = ['bot', 'count']
+                st.write("### Verified Bot Breakdown")
+                fig_bots = px.bar(
+                    bot_counts,
+                    x='bot',
+                    y='count',
+                    labels={'bot': 'Bot', 'count': 'Requests'},
+                    color='bot',
+                )
+                st.plotly_chart(fig_bots, width='stretch')
+
+            st.write("### Raw Data")
+            st.dataframe(df_view)
+
+    with tab2:
+        st.write("## 🔍 HTTP Response Anomaly Detection")
+        st.write(
+            "Detect discrepancies in response payload size (bytes) for the same URL "
+            "across different User Agent categories. Significant variance can indicate "
+            "cloaking, selective blocking (WAF/CDN), or soft 404 errors."
+        )
+
+        with st.spinner("Analyzing HTTP response byte sizes for anomalies…"):
+            anomaly_report = detect_anomalies(
+                df, 
+                min_requests=min_requests_n, 
+                variance_threshold=variance_thresh
+            )
+
+        if anomaly_report.empty:
+            st.info("No anomalies detected based on the current threshold settings (minimum N or variance %).")
+        else:
+            anomalous_rows = anomaly_report[anomaly_report['Anomaly Flag'] == True]
+            anomalous_urls = anomalous_rows['URL'].unique()
+            total_anomalies = len(anomalous_urls)
+            
+            col_m1, col_m2 = st.columns(2)
+            col_m1.metric("Anomalous URLs Detected", total_anomalies)
+            col_m2.metric("Total URL-UA Groups Analyzed", len(anomaly_report))
+            
+            st.write("### Anomalous URLs Report")
+            
+            show_all = st.checkbox("Show all analyzed URL-UA groups (including non-anomalous)")
+            if show_all:
+                display_report = anomaly_report
+            else:
+                display_report = anomalous_rows
+                
+            st.dataframe(display_report, use_container_width=True)
+            
+            col_exp1, col_exp2 = st.columns(2)
+            with col_exp1:
+                csv_data = export_report(display_report, 'csv')
+                st.download_button(
+                    label="📥 Download Report as CSV",
+                    data=csv_data,
+                    file_name="url_anomaly_report.csv",
+                    mime="text/csv"
+                )
+            with col_exp2:
+                json_data = export_report(display_report, 'json')
+                st.download_button(
+                    label="📥 Download Report as JSON",
+                    data=json_data,
+                    file_name="url_anomaly_report.json",
+                    mime="application/json"
+                )
+                
+            st.markdown("---")
+            st.write("### 🔄 Cross-User-Agent Comparison View")
+            st.write(
+                "Select an anomalous URL below to compare response byte sizes, counts, "
+                "and status codes across different user agent categories."
+            )
+            
+            if len(anomalous_urls) > 0:
+                selected_anomaly_url = st.selectbox(
+                    "Select URL to investigate",
+                    options=sorted(anomalous_urls)
+                )
+                
+                if selected_anomaly_url:
+                    url_report = anomaly_report[anomaly_report['URL'] == selected_anomaly_url]
+                    st.dataframe(url_report, use_container_width=True)
+                    
+                    fig_cross = px.bar(
+                        url_report,
+                        x='User Agent Category',
+                        y='Avg Bytes',
+                        color='User Agent Category',
+                        error_y='Std Bytes',
+                        title=f"Average Response Bytes for {selected_anomaly_url}",
+                        labels={'Avg Bytes': 'Average Bytes', 'User Agent Category': 'User Agent Category'}
+                    )
+                    st.plotly_chart(fig_cross, use_container_width=True)
+                    
+                    st.info(
+                        "💡 **Analysing variance:** If a search engine bot (like Googlebot) "
+                        "consistently receives a stable response size (low variance), but other "
+                        "bots or human browsers receive a vastly different size or high variance, "
+                        "it may suggest selective blocking, cloaking, or dynamic CDN optimizations."
+                    )
+            else:
+                st.info("No anomalous URLs available to compare.")
