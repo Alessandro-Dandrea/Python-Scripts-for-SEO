@@ -49,6 +49,49 @@ def identify_bot(user_agent: str) -> str | None:
     return None
 
 
+def get_ua_family(user_agent: str) -> str:
+    """Return the user agent family (bot or browser name) for the user agent string."""
+    bot = identify_bot(user_agent)
+    if bot:
+        bot_display_names = {
+            "Googlebot": "Googlebot",
+            "bingbot": "Bingbot",
+            "Baiduspider": "Baiduspider",
+            "YandexBot": "YandexBot",
+            "DuckDuckBot": "DuckDuckBot",
+            "Applebot": "Applebot",
+            "AhrefsBot": "AhrefsBot",
+            "SemrushBot": "SemrushBot",
+            "MJ12bot": "Majestic / MJ12bot",
+            "PetalBot": "PetalBot",
+            "Sogou": "Sogou",
+            "Bytespider": "Bytespider",
+            "GPTBot": "GPTBot",
+            "Perplexitybot": "PerplexityBot",
+            "ClaudeBot": "ClaudeBot",
+            "facebookexternalhit": "Facebook External Hit",
+            "Twitterbot": "Twitterbot",
+            "LinkedInBot": "LinkedInBot",
+        }
+        return bot_display_names.get(bot, bot)
+
+    ua_lower = user_agent.lower()
+    if "edg/" in ua_lower or "edge" in ua_lower:
+        return "Edge"
+    elif "chrome" in ua_lower:
+        return "Chrome"
+    elif "firefox" in ua_lower:
+        return "Firefox"
+    elif "safari" in ua_lower:
+        return "Safari"
+    elif "opera" in ua_lower or "opr/" in ua_lower:
+        return "Opera"
+    elif "msie" in ua_lower or "trident/" in ua_lower:
+        return "Internet Explorer"
+    
+    return "Other / Unknown"
+
+
 def reverse_dns(ip: str) -> str:
     """Perform a reverse DNS lookup for an IP address.
 
@@ -284,10 +327,12 @@ if uploaded_file is not None:
             st.write("No performance data available.")
 
         user_agent_counts = df_view['user_agent'].value_counts().reset_index()
-        user_agent_counts.columns = ['user_agent', 'count']
+        user_agent_counts.columns = ['User Agent', 'Hits']
+        user_agent_counts['User Agent Family'] = user_agent_counts['User Agent'].apply(get_ua_family)
+        user_agent_counts = user_agent_counts[['User Agent', 'User Agent Family', 'Hits']]
 
         st.write("### User Agent Hits")
-        st.dataframe(user_agent_counts, width='stretch')
+        st.dataframe(user_agent_counts, use_container_width=True)
 
         # In bot mode, show a breakdown by verified bot family
         if analysis_mode == "🤖 Verified Bots Only" and 'detected_bot' in df_view.columns:
