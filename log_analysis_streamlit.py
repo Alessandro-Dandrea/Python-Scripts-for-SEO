@@ -27,6 +27,7 @@ BOT_DEFINITIONS = {
     "Sogou":           ["sogou.com"],
     "Bytespider":      ["bytedance.com"],
     "GPTBot":          ["openai.com"],
+    "Perplexitybot":   ["perplexity.ai"],
     "ClaudeBot":       ["anthropic.com"],
     "facebookexternalhit": ["facebook.com", "fbsv.net"],
     "Twitterbot":      ["twttr.com", "twitter.com"],
@@ -152,14 +153,34 @@ if uploaded_file is not None:
                 ),
             )
         else:
-            selected_agents = st.multiselect(
-                "User agents",
-                options=user_agents,
-                default=[],
-                placeholder="All user agents",
-                format_func=format_user_agent,
-                help="Select one or more user agents. Leave empty to include all entries.",
+            ua_filter_mode = st.radio(
+                "User Agent Filter Mode",
+                ["All", "Single User Agent", "Multiple User Agents"],
+                index=0,
+                help="Choose whether to show all User Agents, filter by a single User Agent, or select multiple User Agents."
             )
+
+            if ua_filter_mode == "Single User Agent":
+                selected_agent = st.selectbox(
+                    "User agent",
+                    options=user_agents,
+                    index=None,
+                    placeholder="Select a user agent",
+                    format_func=format_user_agent,
+                    help="Select a single user agent to filter the results.",
+                )
+                selected_agents = [selected_agent] if selected_agent else []
+            elif ua_filter_mode == "Multiple User Agents":
+                selected_agents = st.multiselect(
+                    "User agents",
+                    options=user_agents,
+                    default=[],
+                    placeholder="Select user agents",
+                    format_func=format_user_agent,
+                    help="Select one or more user agents. Leave empty to include all entries.",
+                )
+            else:
+                selected_agents = []
 
     # ─── Apply filters ───────────────────────────────────────────────────
     if analysis_mode == "🤖 Verified Bots Only":
