@@ -272,6 +272,17 @@ if uploaded_file is not None:
         )
         st.plotly_chart(fig3, width='stretch')
 
+        st.write("### URLs Performance")
+        if not df_view.empty:
+            df_sorted = df_view.sort_values('timestamp')
+            url_perf = df_sorted.groupby('url').last().reset_index()
+            url_perf = url_perf[['url', 'timestamp', 'status']]
+            url_perf.columns = ['Path', 'Last Time Crawled', 'Last Status Code']
+            url_perf = url_perf.sort_values(by='Last Time Crawled', ascending=False)
+            st.dataframe(url_perf, use_container_width=True)
+        else:
+            st.write("No performance data available.")
+
         user_agent_counts = df_view['user_agent'].value_counts().reset_index()
         user_agent_counts.columns = ['user_agent', 'count']
 
